@@ -25,6 +25,7 @@ import net.fabricmc.fabric.api.lookup.v1.entity.EntityApiLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 
 public class AccessoriesFabric implements ModInitializer {
@@ -66,7 +67,17 @@ public class AccessoriesFabric implements ModInitializer {
 
         AccessoriesFabricNetworkHandler.INSTANCE.init();
 
-        ServerLivingEntityEvents.AFTER_DEATH.register(AccessoriesEventHandler::onDeath);
+        ServerLivingEntityEvents.AFTER_DEATH.register((livingEntity, damageSource) -> {
+            var droppedStacks = AccessoriesEventHandler.onDeath(livingEntity, damageSource);
+
+            for (var droppedStack : droppedStacks) {
+                if (livingEntity instanceof Player player) {
+                    player.drop(droppedStack, true);
+                } else {
+                    livingEntity.spawnAtLocation(droppedStack);
+                }
+            }
+        });
 
         ServerTickEvents.START_WORLD_TICK.register(AccessoriesEventHandler::onWorldTick);
 

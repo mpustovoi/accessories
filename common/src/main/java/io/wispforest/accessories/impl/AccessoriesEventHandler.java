@@ -631,45 +631,39 @@ public class AccessoriesEventHandler {
         }
     }
 
-    public static void onDeath(LivingEntity entity, DamageSource source) {
+    public static List<ItemStack> onDeath(LivingEntity entity, DamageSource source) {
         var capability = AccessoriesCapability.get(entity);
-
-        if (capability == null) return;
 
         var droppedStacks = new ArrayList<ItemStack>();
 
-        for (var containerEntry : capability.getContainers().entrySet()) {
-            var slotType = containerEntry.getValue().slotType();
+        if (capability != null) {
+            for (var containerEntry : capability.getContainers().entrySet()) {
+                var slotType = containerEntry.getValue().slotType();
 
-            var slotDropRule = slotType != null ? slotType.dropRule() : DropRule.DEFAULT;
+                var slotDropRule = slotType != null ? slotType.dropRule() : DropRule.DEFAULT;
 
-            var container = containerEntry.getValue();
+                var container = containerEntry.getValue();
 
-            var stacks = container.getAccessories();
-            var cosmeticStacks = container.getCosmeticAccessories();
+                var stacks = container.getAccessories();
+                var cosmeticStacks = container.getCosmeticAccessories();
 
-            for (int i = 0; i < container.getSize(); i++) {
-                var reference = SlotReference.of(entity, container.getSlotName(), i);
+                for (int i = 0; i < container.getSize(); i++) {
+                    var reference = SlotReference.of(entity, container.getSlotName(), i);
 
-                var stack = dropStack(slotDropRule, entity, stacks, reference, source);
-                if (stack != null) droppedStacks.add(stack);
+                    var stack = dropStack(slotDropRule, entity, stacks, reference, source);
+                    if (stack != null) droppedStacks.add(stack);
 
-                var cosmeticStack = dropStack(slotDropRule, entity, cosmeticStacks, reference, source);
-                if (cosmeticStack != null) droppedStacks.add(cosmeticStack);
+                    var cosmeticStack = dropStack(slotDropRule, entity, cosmeticStacks, reference, source);
+                    if (cosmeticStack != null) droppedStacks.add(cosmeticStack);
+                }
             }
+
+            var result = OnDeathCallback.EVENT.invoker().shouldDrop(TriState.DEFAULT, entity, capability, source, droppedStacks);
+
+            if (!result.orElse(true)) return List.of();
         }
 
-        var result = OnDeathCallback.EVENT.invoker().shouldDrop(TriState.DEFAULT, entity, capability, source, droppedStacks);
-
-        if (!result.orElse(true)) return;
-
-        for (var droppedStack : droppedStacks) {
-            if (entity instanceof Player player) {
-                player.drop(droppedStack, true);
-            } else {
-                entity.spawnAtLocation(droppedStack);
-            }
-        }
+        return droppedStacks;
     }
 
     @Nullable

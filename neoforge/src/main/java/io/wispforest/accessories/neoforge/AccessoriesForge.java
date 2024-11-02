@@ -19,7 +19,11 @@ import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.OnDatapackSyncEvent;
@@ -37,7 +41,9 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.RegisterEvent;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 @Mod(Accessories.MODID)
 public class AccessoriesForge {
@@ -159,8 +165,38 @@ public class AccessoriesForge {
     }
 
     public void onEntityDeath(LivingDropsEvent event){
-        AccessoriesEventHandler.onDeath(event.getEntity(), event.getSource());
+        var stacks = AccessoriesEventHandler.onDeath(event.getEntity(), event.getSource());
+
+        event.getDrops().addAll(
+                stacks.stream().flatMap(itemStack -> {
+                    var pos = event.getEntity().position();
+
+                    return getItemEntities(event.getEntity().level(), pos.x, pos.y, pos.z, itemStack);
+                }).toList()
+        );
     }
+
+    private static Stream<ItemEntity> getItemEntities(Level level, double x, double y, double z, ItemStack stack) {
+        double d = EntityType.ITEM.getWidth();
+
+        double e = 1.0 - d;
+        double f = d / 2.0;
+
+        double g = Math.floor(x) + level.random.nextDouble() * e + f;
+        double h = Math.floor(y) + level.random.nextDouble() * e;
+        double i = Math.floor(z) + level.random.nextDouble() * e + f;
+
+        var itemEntities = new ArrayList<ItemEntity>();
+
+        while(!stack.isEmpty()) {
+            ItemEntity itemEntity = new ItemEntity(level, g, h, i, stack.split(level.random.nextInt(21) + 10));
+            itemEntity.setDeltaMovement(level.random.triangle(0.0, 0.11485000171139836), level.random.triangle(0.2, 0.11485000171139836), level.random.triangle(0.0, 0.11485000171139836));
+            itemEntities.add(itemEntity);
+        }
+
+        return itemEntities.stream();
+    }
+
 
     public void onLivingEntityTick(LivingEvent.LivingTickEvent event){
         //if(!(event.getEntity() instanceof LivingEntity livingEntity)) return;
